@@ -1,0 +1,164 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage[colorlinks=true, linkcolor=black, urlcolor=blue]{hyperref}
+\usepackage{listings}
+\usepackage{color}
+
+\geometry{left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+
+\title{\textbf{Machine Learning-MT-AIT 511 Project Report}}
+\author{Aditya Lahkar \\ MT2025014}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+This report details the implementation, analysis, and results of applying machine learning techniques to two distinct datasets: \textbf{Smoker Status Prediction} (Binary Classification) and \textbf{Forest Cover Type} (Multiclass Classification). The primary objective was to compare the performance of Logistic Regression, Support Vector Machines (SVM), and Neural Networks (MLP) after rigorous preprocessing and hyperparameter tuning.
+
+
+\section{Part 1: Smoker Status Prediction}
+
+\subsection{Dataset Details}
+The Smoker Status Prediction dataset consists of bio-signal data aimed at classifying individuals as smokers or non-smokers.
+\begin{itemize}
+    \item \textbf{Type}: Binary Classification.
+    \item \textbf{Samples}: Approx. 39,000 (after cleaning).
+    \item \textbf{Features}: Age, Height, Weight, Waist, Blood Pressure (systolic/relaxation), Cholesterol (HDL/LDL), Triglycerides, Hemoglobin, Urine Protein, Serum Creatinine, AST, ALT, Gtp, Dental Caries.
+    \item \textbf{Target}: \texttt{smoking} (0 = Non-smoker, 1 = Smoker).
+\end{itemize}
+
+\subsection{Preprocessing & EDA}
+Exploratory Data Analysis revealed significant correlations:
+\begin{itemize}
+    \item \textbf{Hemoglobin}: Strong positive correlation with smoking status.
+    \item \textbf{Gtp & Triglycerides}: Showed heavy right-skewed distributions with many outliers.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{smoker_eda_distribution.png}
+    \caption{EDA: Bio-signal distributions and correlations with Smoking Status.}
+    \label{fig:smoker_eda}
+\end{figure}
+
+\textbf{Steps Taken:}
+\begin{enumerate}
+    \item \textbf{Feature Engineering}: Created \texttt{BMI} (Weight/Height$^2$) and \texttt{Waist-to-Height Ratio (WHtr)} to capture body shape health indicators.
+    \item \textbf{Scaling}: Used \texttt{RobustScaler} instead of StandardScaler to mitigate the impact of extreme outliers in Gtp and Triglycerides.
+    \item \textbf{Encoding}: One-hot encoding was not required as all input features were numerical.
+\end{enumerate}
+
+\subsection{Model Implementation & Hyperparameters}
+Models were tuned using \texttt{RandomizedSearchCV}.
+\begin{enumerate}
+    \item \textbf{Logistic Regression}: \newline Best Params: \texttt{\{`solver': `liblinear', `C': 10\}}
+    \item \textbf{SVM} (Subsampled Tuning): \newline Best Params: \texttt{\{`kernel': `rbf', `gamma': `auto', `C': 1\}}
+    \item \textbf{Neural Network}: \newline Best Params: \texttt{\{`learning\_rate\_init': 0.001, `hidden\_layer\_sizes': (50,), `alpha': 0.01, `activation': `relu'\}}
+\end{enumerate}
+
+\subsection{Evaluation & Performance}
+\begin{table}[H]
+\centering
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1 Score} \\ 
+\midrule
+Logistic Regression & 0.718 & 0.627 & 0.572 & 0.598 \\
+\textbf{SVM (Champion)} & \textbf{0.753} & \textbf{0.667} & \textbf{0.658} & \textbf{0.662} \\
+Neural Network & 0.745 & 0.658 & 0.637 & 0.647 \\
+\bottomrule
+\end{tabular}
+\caption{Smoker Dataset Results}
+\end{table}
+
+\textbf{Conclusion:} The SVM (with RBF kernel) outperformed others, likely due to its ability to capture non-linear decision boundaries in the bio-signal space.
+
+\newpage
+
+\section{Part 2: Forest Cover Type}
+
+\subsection{Dataset Details}
+The Forest Cover Type dataset contains cartographic variables to predict forest cover type.
+\begin{itemize}
+    \item \textbf{Type}: Multiclass Classification (7 Classes).
+    \item \textbf{Samples}: 581,012 (Large Data).
+    \item \textbf{Features}: Elevation, Aspect, Slope, Distances to Hydrology/Roadways/Firepoints, Wilderness Areas (Binary), Soil Types (Binary).
+\end{itemize}
+
+\subsection{Preprocessing & EDA}
+\textbf{Key Insights:} \texttt{Elevation} is the single most discriminative feature. \texttt{Distance to Hydrology} also showed strong class separation.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{forest_eda_features.png}
+    \caption{EDA: Elevation and Hydrology Distance impact on Forest Cover Type.}
+    \label{fig:forest_eda}
+\end{figure}
+
+\textbf{Steps Taken:}
+\begin{enumerate}
+    \item \textbf{Feature Engineering}:
+    \begin{itemize}
+        \item \textbf{Euclidean Distance to Hydrology}: Combined Horizontal and Vertical distances ($\sqrt{H^2 + V^2}$).
+        \item \textbf{Mean Distance to Amenities}: Average distance to Roads, Firepoints, and Water.
+        \item \textbf{Water Elevation}: \texttt{Elevation} - \texttt{Vertical\_Distance\_To\_Hydrology}.
+    \end{itemize}
+    \item \textbf{Subsampling Strategy}: 
+    \begin{itemize}
+        \item Logistics Regression & Neural Network: Trained on \textbf{Full Dataset} (581k rows).
+        \item SVM: Capped at \textbf{20,000 samples} due to $O(n^3)$ complexity making full training infeasible.
+    \end{itemize}
+    \item \textbf{Scaling}: \texttt{StandardScaler} applied to continuous features.
+\end{enumerate}
+
+\subsection{Model Implementation}
+\begin{enumerate}
+    \item \textbf{Logistic Regression}: \newline Best Params: \texttt{\{`solver': `lbfgs', `C': 1\}}
+    \item \textbf{SVM}: \newline Best Params: \texttt{\{`kernel': `rbf', `gamma': 0.1, `C': 1\}}
+    \item \textbf{Neural Network}: \newline Best Params: \texttt{\{`learning\_rate\_init': 0.001, `hidden\_layer\_sizes': (100,), `alpha': 0.0001, `activation': `relu'\}}
+\end{enumerate}
+
+\subsection{Evaluation & Performance}
+\begin{table}[H]
+\centering
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1 Score} \\ 
+\midrule
+Logistic Regression & 0.724 & 0.713 & 0.723 & 0.714 \\
+SVM (Subset) & 0.793 & 0.789 & 0.793 & 0.787 \\
+\textbf{Neural Network (Champion)} & \textbf{0.876} & \textbf{0.875} & \textbf{0.876} & \textbf{0.875} \\
+\bottomrule
+\end{tabular}
+\caption{Forest Dataset Results (Weighted Averages)}
+\end{table}
+
+\textbf{Conclusion:} The Neural Network dominated this task (87.6\% Accuracy). The dataset's complexity and large sample size naturally favor deep learning approaches over linear models or sample-constrained SVMs.
+
+\section{Final Conclusion}
+\begin{itemize}
+    \item For the \textbf{Smoker dataset} (mid-sized, biological data), \textbf{SVM} proved most effective at finding the refined decision boundary.
+    \item For the \textbf{Forest dataset} (large-scale, high-dimensional cartographic data), the \textbf{Neural Network} significantly outperformed traditional methods.
+    \item \textbf{Preprocessing Impact}: Feature engineering (hydrology distance, BMI) and robust scaling were critical in achieving these scores.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{model_comparison_plot.png}
+    \caption{Final Accuracy Comparison: SVM wins Smoker task, Neural Net wins Forest task.}
+    \label{fig:comparison}
+\end{figure}
+
+\section{Reproducibility}
+The complete source code is available on \href{https://github.com/AdityaLahkar/Machine-Learning-Course-Project-2}{GitHub}
+
+
+\end{document}
